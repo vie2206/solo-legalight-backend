@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');        // ADD THIS
-const passport = require('passport');             // ADD THIS
+// Passport removed - using SMS auth only
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
@@ -66,103 +66,9 @@ app.use(session({
   }
 }));
 
-app.use(passport.initialize());
-app.use(passport.session());
+// Passport middleware removed - using SMS auth only
 
-// ===============================
-// GOOGLE OAUTH CONFIGURATION
-// ===============================
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-  try {
-    const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', id)
-      .single();
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
-});
-
-// Configure Google OAuth Strategy
-try {
-  console.log('🔍 Configuring Google OAuth Strategy...');
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:8000/api/auth/google/callback"
-  }, async (accessToken, refreshToken, profile, done) => {
-  try {
-    console.log('🔍 Google OAuth Profile received:', {
-      id: profile.id,
-      displayName: profile.displayName,
-      email: profile.emails[0].value
-    });
-    
-    // Check if user exists
-    console.log('🔍 Checking if user exists...');
-    const { data: existingUser, error: findError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', profile.emails[0].value.toLowerCase())
-      .single();
-
-    if (findError && findError.code !== 'PGRST116') {
-      console.error('❌ Error finding user:', findError);
-      return done(findError, null);
-    }
-
-    if (existingUser) {
-      console.log('✅ Existing user found:', existingUser.email);
-      return done(null, existingUser);
-    }
-
-    // Create new user with minimal fields
-    console.log('🔍 Creating new user...');
-    const userData = {
-      email: profile.emails[0].value.toLowerCase(),
-      name: profile.displayName,
-      role: 'student',
-      encrypted_password: await bcrypt.hash(randomUUID(), 12)
-    };
-    
-    console.log('🔍 User data to insert:', userData);
-    
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert([userData])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('❌ Error creating user:', {
-        error: error,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
-      return done(error, null);
-    }
-
-    console.log('✅ New user created successfully:', newUser.email);
-    done(null, newUser);
-  } catch (error) {
-    console.error('❌ Google OAuth critical error:', error);
-    done(error, null);
-  }
-}));
-
-  console.log('✅ Google OAuth Strategy configured successfully');
-} catch (strategyError) {
-  console.error('❌ Error configuring Google OAuth Strategy:', strategyError);
-}
+// Google OAuth removed - using SMS authentication only
 
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
@@ -633,71 +539,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 // GOOGLE OAUTH ROUTES
 // ===============================
 
-// Test OAuth configuration
-app.get('/api/auth/test-oauth', (req, res) => {
-  try {
-    console.log('🔍 Testing OAuth configuration...');
-    res.json({
-      message: 'OAuth configuration test',
-      googleClientId: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Missing',
-      googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Missing',
-      passportConfigured: !!passport._strategies.google,
-      callbackURL: "http://localhost:8000/api/auth/google/callback"
-    });
-  } catch (error) {
-    console.error('❌ OAuth test error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Initiate Google OAuth flow
-app.get('/api/auth/google', (req, res, next) => {
-  console.log('🔍 OAuth initiation requested');
-  console.log('🔍 Google Client ID:', process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Missing');
-  console.log('🔍 Google Client Secret:', process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Missing');
-  
-  passport.authenticate('google', {
-    scope: ['profile', 'email']
-  })(req, res, next);
-}, (err, req, res, next) => {
-  console.error('❌ OAuth initiation error:', err);
-  res.status(500).json({ 
-    error: 'OAuth initiation failed',
-    details: err.message 
-  });
-});
-
-// Google OAuth callback
-app.get('/api/auth/google/callback', 
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}?error=oauth_failed` }),
-  async (req, res) => {
-    try {
-      console.log('🔍 OAuth callback reached, user:', req.user ? req.user.email : 'NO USER');
-      
-      if (!req.user) {
-        console.error('❌ No user in callback');
-        return res.redirect(`${process.env.FRONTEND_URL}?error=no_user`);
-      }
-      
-      // Generate JWT token for the authenticated user
-      console.log('🔍 Generating JWT token...');
-      const token = jwt.sign(
-        { id: req.user.id, email: req.user.email, role: req.user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-      
-      console.log(`✅ Google OAuth login successful:`, req.user.email);
-      console.log(`🔍 Redirecting to: ${process.env.FRONTEND_URL}?token=${token.substring(0, 20)}...`);
-      
-      // Redirect to frontend with token
-      res.redirect(`${process.env.FRONTEND_URL}?token=${token}`);
-    } catch (error) {
-      console.error('❌ OAuth callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}?error=token_generation_failed`);
-    }
-  }
-);
+// Google OAuth routes removed - using SMS authentication only
 
 // ===============================
 // ANALYTICS ROUTES (USING EXISTING COLUMNS)
@@ -2159,25 +2001,26 @@ app.use((error, req, res, next) => {
 // ===============================
 
 app.listen(PORT, () => {
-  // OAuth Configuration Check
-  console.log(`🔐 OAuth Configuration: {`);
-  console.log(`  clientId: ${process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Missing'}`);
-  console.log(`  clientSecret: ${process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Missing'}`);
+  // SMS Authentication Configuration
+  console.log(`📱 SMS Auth Configuration: {`);
+  console.log(`  twilioSid: ${process.env.TWILIO_ACCOUNT_SID ? 'Set' : 'Missing'}`);
+  console.log(`  twilioToken: ${process.env.TWILIO_AUTH_TOKEN ? 'Set' : 'Missing'}`);
+  console.log(`  twilioPhone: ${process.env.TWILIO_PHONE_NUMBER ? 'Set' : 'Missing'}`);
   console.log(`  frontendUrl: '${process.env.FRONTEND_URL}'`);
   console.log(`}`);
   
   console.log(`🚀 Level Up Backend Server running on port ${PORT}`);
   console.log(`📊 Supabase URL: ${process.env.SUPABASE_URL}`);
   console.log(`🔐 Frontend URL: ${process.env.FRONTEND_URL}`);
-  console.log(`👥 Multi-role authentication enabled (existing table)`);
+  console.log(`👥 SMS-based authentication enabled`);
   console.log(`📝 Mock Test Management v5.0 enabled`);
   console.log(`🎯 Student Planning System enabled`);
-  console.log(`✅ All duplicate routes removed`);
+  console.log(`✅ All Google OAuth removed`);
   console.log(`🌟 Ready to serve all user types!`);
   console.log(`\n🔗 Available endpoints:`);
   console.log(`   Health Check: http://localhost:${PORT}/health`);
   console.log(`   Test DB: http://localhost:${PORT}/api/test-db`);
   console.log(`   Admin Mock Tests: http://localhost:${PORT}/api/admin/mock-tests`);
-  console.log(`   Google OAuth: http://localhost:${PORT}/api/auth/google`);
+  console.log(`   SMS Auth: http://localhost:${PORT}/api/auth/send-otp`);
   console.log(`\n✨ Server started successfully!`);
 });
