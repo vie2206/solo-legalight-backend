@@ -1,0 +1,90 @@
+[
+  {
+    "id": "demo-student-001",
+    "name": "Arjun Sharma",
+    "email": "arjun@demo.com",
+    "level": "Grandmaster Lightian",
+    "target_score": 105,
+    "accuracy_rate": 0.92,
+    "attempt_rate": 0.98,
+    "strengths": [
+      "Legal Reasoning",
+      "Logical Reasoning"
+    ],
+    "weaknesses": [
+      "Current Affairs"
+    ],
+    "time_management": "excellent"
+  },
+  {
+    "id": "demo-student-002",
+    "name": "Priya Patel",
+    "email": "priya@demo.com",
+    "level": "Master Lightian",
+    "target_score": 87,
+    "accuracy_rate": 0.85,
+    "attempt_rate": 0.95,
+    "strengths": [
+      "English Language",
+      "Legal Reasoning"
+    ],
+    "weaknesses": [
+      "Quantitative Techniques"
+    ],
+    "time_management": "good"
+  },
+  {
+    "id": "demo-student-003",
+    "name": "Rohit Kumar",
+    "email": "rohit@demo.com",
+    "level": "Champion Lightian",
+    "target_score": 72,
+    "accuracy_rate": 0.78,
+    "attempt_rate": 0.88,
+    "strengths": [
+      "Logical Reasoning",
+      "Current Affairs"
+    ],
+    "weaknesses": [
+      "Legal Reasoning",
+      "English Language"
+    ],
+    "time_management": "average"
+  },
+  {
+    "id": "demo-student-004",
+    "name": "Ananya Singh",
+    "email": "ananya@demo.com",
+    "level": "Advancing Lightian",
+    "target_score": 58,
+    "accuracy_rate": 0.68,
+    "attempt_rate": 0.82,
+    "strengths": [
+      "Current Affairs",
+      "English Language"
+    ],
+    "weaknesses": [
+      "Legal Reasoning",
+      "Quantitative Techniques"
+    ],
+    "time_management": "needs_improvement"
+  },
+  {
+    "id": "demo-student-005",
+    "name": "Vikram Joshi",
+    "email": "vikram@demo.com",
+    "level": "Rising Lightian",
+    "target_score": 42,
+    "accuracy_rate": 0.58,
+    "attempt_rate": 0.75,
+    "strengths": [
+      "Current Affairs"
+    ],
+    "weaknesses": [
+      "Legal Reasoning",
+      "Logical Reasoning",
+      "Quantitative Techniques"
+    ],
+    "time_management": "poor"
+  }
+]

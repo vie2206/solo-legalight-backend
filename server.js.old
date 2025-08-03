@@ -1,0 +1,180 @@
+// Enhanced Level Up Backend Server with Supabase Integration
+// This replaces in-memory arrays with real database operations
+
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const session = require('express-session');
+const jwt = require('jsonwebtoken');
+
+const app = express();
+const PORT = process.env.PORT || 8000;
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport Google OAuth Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: "/auth/google/callback"
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    // Check if user exists in Supabase
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('google_id', profile.id)
+      .single();
+
+    if (existingUser) {
+      return done(null, existingUser);
+    }
+
+    // Create new user in Supabase
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([{
+        google_id: profile.id,
+        email: profile.emails[0].value,
+        name: profile.displayName,
+        profile_picture: profile.photos[0]?.value,
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error creating user:', insertError);
+      return done(insertError, null);
+    }
+
+    return done(null, newUser);
+  } catch (error) {
+    console.error('OAuth error:', error);
+    return done(error, null);
+  }
+}));
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return done(error, null);
+    }
+    return done(null, user);
+  } catch (error) {
+    return done(error, null);
+  }
+});
+
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Authentication required' });
+};
+
+// Health check route
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    supabase: 'Connected',
+    version: '2.0.0'
+  });
+});
+// ===============================
+// ANALYTICS ROUTES
+// ===============================
+
+// Get user dashboard analytics
+app.get('/api/analytics/dashboard', async (req, res) => {
+  try {
+    // For now, return simple analytics (no authentication required for testing)
+    const analytics = {
+      mockTestsTaken: 0,
+      averageScore: 0,
+      bestScore: 0,
+      currentStreak: 0,
+      improvement: 0
+    };
+
+    console.log('📊 Analytics requested - returning:', analytics);
+    res.json(analytics);
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// ===============================
+// MOCK TEST ROUTES
+// ===============================
+
+// Submit mock test result
+app.post('/api/mock-tests/:id/submit', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const mockTestData = req.body;
+    
+    console.log('📝 Mock test submission received:', { id, score: mockTestData.score });
+    
+    // For now, just return success (will implement database saving later)
+    const result = {
+      id: Date.now(),
+      score: mockTestData.score,
+      submitted_at: new Date().toISOString(),
+      message: 'Test submitted successfully (demo mode)'
+    };
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error submitting mock test:', error);
+    res.status(500).json({ error: 'Failed to submit mock test' });
+  }
+});
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Level Up Backend Server running on port ${PORT}`);
+  console.log(`📊 Supabase URL: ${process.env.SUPABASE_URL}`);
+  console.log(`🔐 Frontend URL: ${process.env.FRONTEND_URL}`);
+  console.log(`🌟 Ready to serve CLAT aspirants!`);
+});
