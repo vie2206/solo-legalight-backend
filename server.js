@@ -10,8 +10,22 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { randomUUID } = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
+const http = require('http');
+const socketIo = require('socket.io');
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      'http://localhost:3000',
+      'http://localhost:3001', 
+      'http://localhost:4000'
+    ],
+    credentials: true
+  }
+});
 const PORT = process.env.PORT || 8000;
 
 // Initialize Supabase client
@@ -1469,11 +1483,16 @@ app.get('/api/admin/stats', authenticateToken, requireRole(['admin', 'operation_
 // ENHANCED ROUTE IMPORTS
 // ===============================
 
-// Middleware to attach supabase to request
+// Middleware to attach supabase and io to request
 app.use((req, res, next) => {
   req.supabase = supabase;
+  req.io = io;
   next();
 });
+
+// Initialize doubt WebSocket handling
+const { handleDoubtSocket } = require('./socket/doubtSocket');
+handleDoubtSocket(io);
 
 // Import additional route modules
 const authRoutes = require('./routes/auth');
@@ -1483,6 +1502,10 @@ const adminCompleteRoutes = require('./routes/admin-complete');
 const subscriptionRoutes = require('./routes/subscription');
 const educatorRoutes = require('./routes/educator');
 const parentRoutes = require('./routes/parent');
+const doubtRoutes = require('./routes/doubts');
+const notificationRoutes = require('./routes/notifications');
+const uploadRoutes = require('./routes/upload');
+const analyticsRoutes = require('./routes/analytics');
 
 // Apply routes with proper middleware
 app.use('/api/auth', authRoutes);
@@ -1492,6 +1515,10 @@ app.use('/api/admin', adminCompleteRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/educator', educatorRoutes);
 app.use('/api/parent', parentRoutes);
+app.use('/api/doubts', doubtRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // ===============================
 // HEALTH CHECK ROUTE
@@ -2000,7 +2027,7 @@ app.use((error, req, res, next) => {
 // START SERVER
 // ===============================
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   // SMS Authentication Configuration
   console.log(`📱 SMS Auth Configuration: {`);
   console.log(`  twilioSid: ${process.env.TWILIO_ACCOUNT_SID ? 'Set' : 'Missing'}`);
