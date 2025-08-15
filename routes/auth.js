@@ -78,4 +78,175 @@ router.post('/refresh', async (req, res) => {
   }
 })
 
+// SMS Authentication Routes
+// Store OTPs temporarily (in production, use Redis)
+const otpStore = new Map()
+
+// Generate random 6-digit OTP
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+// Send OTP via SMS (Demo Mode)
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { phone, role, name } = req.body
+
+    if (!phone || !role || !name) {
+      return res.status(400).json({ 
+        error: 'Phone number, role, and name are required' 
+      })
+    }
+
+    // Generate OTP
+    const otp = generateOTP()
+    
+    // Store OTP temporarily (expires in 5 minutes)
+    otpStore.set(phone, {
+      otp,
+      role,
+      name,
+      expires: Date.now() + 5 * 60 * 1000 // 5 minutes
+    })
+
+    // For demo mode, return the OTP in response
+    const isDemoMode = process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE === 'true'
+    
+    console.log(`📱 Demo OTP for ${phone}: ${otp}`)
+    
+    res.json({ 
+      success: true, 
+      message: 'OTP sent successfully',
+      testOtp: otp // Always return for demo
+    })
+
+  } catch (error) {
+    console.error('Send OTP error:', error)
+    res.status(500).json({ 
+      error: 'Failed to send OTP',
+      details: error.message 
+    })
+  }
+})
+
+// Verify OTP and register/login user
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { phone, otp } = req.body
+
+    if (!phone || !otp) {
+      return res.status(400).json({ 
+        error: 'Phone number and OTP are required' 
+      })
+    }
+
+    // Check OTP
+    const storedData = otpStore.get(phone)
+    
+    if (!storedData) {
+      return res.status(400).json({ 
+        error: 'OTP not found or expired' 
+      })
+    }
+
+    if (storedData.expires < Date.now()) {
+      otpStore.delete(phone)
+      return res.status(400).json({ 
+        error: 'OTP expired' 
+      })
+    }
+
+    if (storedData.otp !== otp) {
+      return res.status(400).json({ 
+        error: 'Invalid OTP' 
+      })
+    }
+
+    // OTP verified, clear it
+    otpStore.delete(phone)
+
+    // Check if user exists
+    let { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone', phone)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      throw error
+    }
+
+    // Create new user if doesn't exist
+    if (!user) {
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert([
+          {
+            phone: phone,
+            name: storedData.name,
+            role: storedData.role,
+            phone_verified: true,
+            created_at: new Date().toISOString()
+          }
+        ])
+        .select()
+        .single()
+
+      if (createError) {
+        throw createError
+      }
+
+      user = newUser
+    } else {
+      // Update existing user
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          phone_verified: true,
+          name: storedData.name,
+          role: storedData.role
+        })
+        .eq('id', user.id)
+        .select()
+        .single()
+
+      if (updateError) {
+        throw updateError
+      }
+
+      user = updatedUser
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        phone: user.phone, 
+        role: user.role 
+      },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '7d' }
+    )
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        phone: user.phone,
+        name: user.name,
+        role: user.role,
+        phone_verified: user.phone_verified
+      }
+    })
+
+  } catch (error) {
+    console.error('Verify OTP error:', error)
+    res.status(500).json({ 
+      error: 'Failed to verify OTP',
+      details: error.message 
+    })
+  }
+})
+
 module.exports = router
