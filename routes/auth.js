@@ -7,13 +7,21 @@ const { createClient } = require('@supabase/supabase-js')
 
 const router = express.Router()
 
-// Initialize Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-)
+// Initialize Supabase with fallback
+let supabase
+try {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
+  )
+  console.log('✅ Supabase client initialized in auth.js')
+} catch (error) {
+  console.error('❌ Failed to initialize Supabase in auth.js:', error.message)
+}
 
 console.log('📱 SMS Auth Configuration:', {
+  supabaseUrl: process.env.SUPABASE_URL ? 'Set' : 'Missing',
+  supabaseKey: process.env.SUPABASE_SERVICE_KEY ? 'Set' : 'Missing',
   twilioSid: process.env.TWILIO_ACCOUNT_SID ? 'Set' : 'Missing',
   twilioToken: process.env.TWILIO_AUTH_TOKEN ? 'Set' : 'Missing',
   frontendUrl: process.env.FRONTEND_URL
@@ -173,7 +181,19 @@ router.post('/verify-otp', async (req, res) => {
       .single()
 
     if (error && error.code !== 'PGRST116') {
-      throw error
+      console.error('Supabase query error:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        supabaseUrl: process.env.SUPABASE_URL ? 'Set' : 'Missing',
+        supabaseKey: process.env.SUPABASE_SERVICE_KEY ? 'Set (length: ' + process.env.SUPABASE_SERVICE_KEY.length + ')' : 'Missing'
+      })
+      return res.status(500).json({ 
+        error: 'Database connection error',
+        details: error.message,
+        code: error.code
+      })
     }
 
     // Create new user if doesn't exist
@@ -193,7 +213,17 @@ router.post('/verify-otp', async (req, res) => {
         .single()
 
       if (createError) {
-        throw createError
+        console.error('User creation error:', {
+          error: createError.message,
+          code: createError.code,
+          details: createError.details,
+          hint: createError.hint
+        })
+        return res.status(500).json({ 
+          error: 'Failed to create user',
+          details: createError.message,
+          code: createError.code
+        })
       }
 
       user = newUser
@@ -211,7 +241,17 @@ router.post('/verify-otp', async (req, res) => {
         .single()
 
       if (updateError) {
-        throw updateError
+        console.error('User update error:', {
+          error: updateError.message,
+          code: updateError.code,
+          details: updateError.details,
+          hint: updateError.hint
+        })
+        return res.status(500).json({ 
+          error: 'Failed to update user',
+          details: updateError.message,
+          code: updateError.code
+        })
       }
 
       user = updatedUser
