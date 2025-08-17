@@ -1,0 +1,96 @@
+# GitHub Dependabot configuration for SOLO Backend
+# Automates Node.js backend dependency updates
+
+version: 2
+updates:
+  # Backend Node.js Dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "viesevieva5"  # Replace with actual GitHub username
+    assignees:
+      - "viesevieva5"  # Replace with actual GitHub username
+    commit-message:
+      prefix: "feat(backend)"
+      include: "scope"
+    groups:
+      express-ecosystem:
+        patterns:
+          - "express*"
+      supabase-ecosystem:
+        patterns:
+          - "@supabase/*"
+      authentication:
+        patterns:
+          - "bcryptjs"
+          - "jsonwebtoken"
+          - "twilio"
+      ai-services:
+        patterns:
+          - "@anthropic-ai/*"
+          - "openai"
+      file-processing:
+        patterns:
+          - "exceljs"
+          - "multer"
+          - "csv-*"
+      utils:
+        patterns:
+          - "cors"
+          - "dotenv"
+          - "express-validator"
+          - "express-session"
+    ignore:
+      # Pin Node.js LTS versions for stability
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+        # Allow major updates only after manual review
+
+  # Security Updates (High Priority)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "viesevieva5"  # Replace with actual GitHub username
+    assignees:
+      - "viesevieva5"  # Replace with actual GitHub username
+    commit-message:
+      prefix: "security(backend)"
+      include: "scope"
+    # Only security updates
+    allow:
+      - dependency-type: "direct"
+        update-type: "security"
+      - dependency-type: "indirect"
+        update-type: "security"
+
+  # Production Dependencies Only (Monthly Review)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: 15
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "viesevieva5"  # Replace with actual GitHub username
+    assignees:
+      - "viesevieva5"  # Replace with actual GitHub username
+    commit-message:
+      prefix: "deps(backend)"
+      include: "scope"
+    # Only production dependencies for monthly review
+    allow:
+      - dependency-type: "direct"
+        update-type: "all"
+    ignore:
+      - dependency-type: "indirect"
